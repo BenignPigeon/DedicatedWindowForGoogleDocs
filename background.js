@@ -24,15 +24,56 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab){
 		// The "onUpdated" function can be called several times before closing "source" tab. We put the ID of the source tab in memory so as not to open several times before closing the source tab. 
         gDocTabsClodedsIDs.push(tab.id);
 		
-        chrome.tabs.remove(tabId); // Close "source" tab
+       
+    // Create a unique key for the window ID
+    var key = "windowsIDs" + "_" + tab.windowId;
 
-		// Create pop-up with same url of the "source" tab
-        chrome.windows.create({url: tab.url, type: "popup", top: 0, left: 0, width: 1200, height: 1000}, function (windowCreated) {
-			
-			/* Put created window ID in the list of created windows for ignore this to next "onUpdated" event, because the url of the new window also starting the same address,
-				the function would be executed again and is Chrome would create the window again in an infinite way.
-			*/
+    // Retrieve data from Chrome storage using the key
+    chrome.storage.sync.get(key, function(result) {
+      console.log(result);
+
+      // If the value associated with the key is not true
+      if (result[key] != true) {
+        // Remove the tab
+        chrome.tabs.remove(tabId);
+
+        // Create a new window with the same URL as the tab,
+        // as a maximized popup window
+        chrome.windows.create(
+          {
+            url: tab.url,
+            type: "popup",
+            state: "maximized"
+          },
+          function(windowCreated) {
+            // Add the newly created window's ID to the gDocWindowsIDs array
             gDocWindowsIDs.push(windowCreated.id);
-        });
-    }
-})
+
+            // Set the value of the key in local storage to true
+            setLocalStorageValue("windowsIDs", windowCreated.id, true);
+          }
+        );
+      }
+    });
+  }
+});
+
+// Function to set a value in local storage
+function setLocalStorageValue(prefix, id, value) {
+  var key = prefix + "_" + id,
+    val = value;
+
+  // Store the key-value pair in Chrome storage
+  chrome.storage.sync.set({ [key]: val });
+}
+
+// Function to get a value from local storage
+function getLocalStorageValue(prefix, id) {
+  key = prefix + "_" + id;
+
+  // Retrieve the value associated with the key from Chrome storage
+  chrome.storage.sync.get(key, function(result) {
+    console.log(result);
+    return result[key];
+  });
+}
